@@ -14,88 +14,75 @@ void Board::reset() {
 }
 
 void Board::drawBoard(const std::vector<Player>& players) const {
-    const int N = kSize;
-    const int gridRows = 2 * N + 2;   // 18 rows for N == 8
-    const int gridCols = 4 * N + 2;   // 34 columns for N == 8
-    const std::string kCellSymbol = u8"□";
-    const std::string kWallSymbol = u8"■";
+    const int N = kSize;                     // 예: 9
+    const int rows = 2 * N;                  // 0행 알파벳 + (셀/숫자) * (N-1) + 마지막 셀
+    const int cols = 2 + N + (N - 1) * 3;    // "  " + N칸 + (N-1)*3
 
+    // 화면 버퍼
     std::vector<std::vector<std::string>> screen(
-        gridRows, std::vector<std::string>(gridCols, " "));
+        rows, std::vector<std::string>(cols, " ")
+    );
 
-    // Row labels on even-numbered rows (1-based): rows 2,4,...,16.
-    for (int row = 1, label = 1; row < gridRows && label <= N; row += 2, ++label) {
-        screen[row][0] = std::to_string(label);
-    }
-
-    // Column labels on multiples of 3 (1-based) in the first row.
-    for (int col = 0, label = 0; col < gridCols && label < N; ++col) {
-        if ((col + 1) % 3 == 0) {
-            screen[0][col] = std::string(1, static_cast<char>('A' + label));
-            ++label;
+    // 1) 맨 위 알파벳 줄
+    // N=9면 gap은 0..7 → A..H까지만 찍힘
+    for (int g = 0; g < N - 1; ++g) {
+        int col = 4 + 4 * g; // 네모 사이 가운데
+        if (col < cols) {
+            screen[0][col] = std::string(1, static_cast<char>('A' + g)); // A~H
         }
     }
 
-    // Fill base cells.
-    for (int row = 0; row < N; ++row) {
-        for (int col = 0; col < N; ++col) {
-            int rowIndex = 2 * row + 1;
-            int colIndex = 3 * col + 2;
-            if (rowIndex < gridRows && colIndex < gridCols) {
-                screen[rowIndex][colIndex] = kCellSymbol;
+    // 2) 기본 보드 (셀행 + 숫자행)
+    for (int r = 0; r < N; ++r) {
+        // 셀 있는 행: 1,3,5,... = 1 + 2*r
+        int cellRow = 1 + 2 * r;
+
+        // 앞 두 칸
+        screen[cellRow][0] = " ";
+        screen[cellRow][1] = " ";
+
+        // 셀 N개 찍기
+        for (int c = 0; c < N; ++c) {
+            int cellCol = 2 + 4 * c;  // 셀 c 위치
+            if (cellCol < cols) {
+                screen[cellRow][cellCol] = u8"□";
             }
         }
-    }
 
-    // Place players on their cells.
-    for (std::size_t index = 0; index < players.size(); ++index) {
-        if (players[index].isDead()) {
-            continue;
-        }
-        Position position = players[index].getPosition();
-        if (!isWithinBounds(position)) {
-            continue;
-        }
-
-        int rowIndex = 2 * position.row + 1;
-        int colIndex = 3 * position.col + 2;
-        if (rowIndex < gridRows && colIndex < gridCols) {
-            screen[rowIndex][colIndex] =
-                std::string(1, static_cast<char>('1' + static_cast<int>(index)));
+        // 숫자행은 위에서 말한대로 1~(N-1)까지만
+        if (r < N - 1) {
+            int numRow = cellRow + 1;
+            screen[numRow][0] = std::to_string(r + 1); // 1,2,...,8
         }
     }
 
-    // Mark stored walls.
-    auto markWall = [&](int row, int col) {
-        if (row >= 0 && row < gridRows && col >= 0 && col < gridCols) {
-            screen[row][col] = kWallSymbol;
-        }
-    };
+    // 3) 플레이어 덮어쓰기
+    for (std::size_t i = 0; i < players.size(); ++i) {
+        if (players[i].isDead()) continue;
+        Position p = players[i].getPosition();
+        if (!isWithinBounds(p)) continue;
 
-    for (const auto& wall : walls_) {
-        if (wall.horizontal) {
-            int rowIndex = 2 * wall.position.row + 2;
-            int colIndex = 3 * wall.position.col + 2;
-            for (int delta = 0; delta < 3; ++delta) {
-                markWall(rowIndex, colIndex + delta);
-            }
-        } else {
-            int rowIndex = 2 * wall.position.row + 1;
-            int colIndex = 3 * wall.position.col + 3;
-            for (int delta = 0; delta < 3; ++delta) {
-                markWall(rowIndex + delta, colIndex);
-            }
+        int cellRow = 1 + 2 * p.row;
+        int cellCol = 2 + 4 * p.col;
+
+        if (cellRow >= 0 && cellRow < rows &&
+            cellCol >= 0 && cellCol < cols) {
+            screen[cellRow][cellCol] =
+                std::string(1, static_cast<char>('1' + static_cast<int>(i)));
         }
     }
 
-    // Print the composed board.
-    for (int row = 0; row < gridRows; ++row) {
-        for (int col = 0; col < gridCols; ++col) {
-            std::cout << screen[row][col];
+    // 4) 출력
+    for (int r = 0; r < rows; ++r) {
+        for (int c = 0; c < cols; ++c) {
+            std::cout << screen[r][c];
         }
         std::cout << '\n';
     }
 }
+
+
+
 
 bool Board::isWithinBounds(const Position& position) const {
     return position.row >= 0 && position.row < kSize &&
