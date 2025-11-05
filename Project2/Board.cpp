@@ -15,17 +15,35 @@ void Board::reset() {
 
 void Board::drawBoard(const std::vector<Player>& players) const {
     const int N = kSize;
-    const int gridSize = 2 * N - 1;
+    const int gridRows = 2 * N + 2;   // 18 rows for N == 8
+    const int gridCols = 4 * N + 2;   // 34 columns for N == 8
     const std::string kCellSymbol = u8"□";
     const std::string kWallSymbol = u8"■";
 
     std::vector<std::vector<std::string>> screen(
-        gridSize, std::vector<std::string>(gridSize, " "));
+        gridRows, std::vector<std::string>(gridCols, " "));
+
+    // Row labels on even-numbered rows (1-based): rows 2,4,...,16.
+    for (int row = 1, label = 1; row < gridRows && label <= N; row += 2, ++label) {
+        screen[row][0] = std::to_string(label);
+    }
+
+    // Column labels on multiples of 3 (1-based) in the first row.
+    for (int col = 0, label = 0; col < gridCols && label < N; ++col) {
+        if ((col + 1) % 3 == 0) {
+            screen[0][col] = std::string(1, static_cast<char>('A' + label));
+            ++label;
+        }
+    }
 
     // Fill base cells.
     for (int row = 0; row < N; ++row) {
         for (int col = 0; col < N; ++col) {
-            screen[2 * row][2 * col] = kCellSymbol;
+            int rowIndex = 2 * row + 1;
+            int colIndex = 3 * col + 2;
+            if (rowIndex < gridRows && colIndex < gridCols) {
+                screen[rowIndex][colIndex] = kCellSymbol;
+            }
         }
     }
 
@@ -39,60 +57,41 @@ void Board::drawBoard(const std::vector<Player>& players) const {
             continue;
         }
 
-        screen[2 * position.row][2 * position.col] =
-            std::string(1, static_cast<char>('1' + static_cast<int>(index)));
+        int rowIndex = 2 * position.row + 1;
+        int colIndex = 3 * position.col + 2;
+        if (rowIndex < gridRows && colIndex < gridCols) {
+            screen[rowIndex][colIndex] =
+                std::string(1, static_cast<char>('1' + static_cast<int>(index)));
+        }
     }
 
     // Mark stored walls.
     auto markWall = [&](int row, int col) {
-        if (row >= 0 && row < gridSize && col >= 0 && col < gridSize) {
+        if (row >= 0 && row < gridRows && col >= 0 && col < gridCols) {
             screen[row][col] = kWallSymbol;
         }
     };
 
     for (const auto& wall : walls_) {
         if (wall.horizontal) {
-            int rowIndex = 2 * wall.position.row;
-            int colIndex = 2 * wall.position.col + 1;
-            markWall(rowIndex, colIndex);
-            markWall(rowIndex, colIndex - 2);
-            markWall(rowIndex, colIndex + 2);
+            int rowIndex = 2 * wall.position.row + 2;
+            int colIndex = 3 * wall.position.col + 2;
+            for (int delta = 0; delta < 3; ++delta) {
+                markWall(rowIndex, colIndex + delta);
+            }
         } else {
             int rowIndex = 2 * wall.position.row + 1;
-            int colIndex = 2 * wall.position.col;
-            markWall(rowIndex, colIndex);
-            markWall(rowIndex - 2, colIndex);
-            markWall(rowIndex + 2, colIndex);
-        }
-    }
-
-    // Insert column letters in vertical slots between cells.
-    for (int col = 1; col < gridSize; col += 2) {
-        char label = static_cast<char>('A' + (col - 1) / 2);
-        for (int row = 0; row < gridSize; row += 2) {
-            if (screen[row][col] == " ") {
-                screen[row][col] = std::string(1, label);
+            int colIndex = 3 * wall.position.col + 3;
+            for (int delta = 0; delta < 3; ++delta) {
+                markWall(rowIndex + delta, colIndex);
             }
         }
     }
 
-    // Insert row numbers in horizontal slots between cells.
-    for (int row = 1; row < gridSize; row += 2) {
-        std::string label = std::to_string((row + 1) / 2);
-        for (int col = 0; col < gridSize; col += 2) {
-            if (screen[row][col] == " ") {
-                screen[row][col] = label;
-            }
-        }
-    }
-
-    // Print the composed screen.
-    for (int row = 0; row < gridSize; ++row) {
-        for (int col = 0; col < gridSize; ++col) {
+    // Print the composed board.
+    for (int row = 0; row < gridRows; ++row) {
+        for (int col = 0; col < gridCols; ++col) {
             std::cout << screen[row][col];
-            if (col < gridSize - 1) {
-                std::cout << ' ';
-            }
         }
         std::cout << '\n';
     }

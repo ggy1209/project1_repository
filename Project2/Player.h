@@ -24,7 +24,7 @@ public:
     void eliminate();
 
 private:
-    static constexpr int kBoardSize = 9;
+    static constexpr int kBoardSize = 8;
 
     std::string name_;
     Position position_;
