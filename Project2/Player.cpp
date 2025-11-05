@@ -2,36 +2,37 @@
 
 #include <iostream>
 
+using namespace std;
+
 namespace {
-    int directionToRowOffset(int direction) {
-        switch (direction) {
-        case 0:
+int directionToRowOffset(int direction) {
+    switch (direction) {
+        case 'u':
             return -1;  // Up
-        case 2:
+        case 'n':
             return 1;  // Down
         default:
             return 0;
-        }
     }
+}
 
-    int directionToColOffset(int direction) {
-        switch (direction) {
-        case 1:
+int directionToColOffset(int direction) {
+    switch (direction) {
+        case 'k':
             return 1;  // Right
-        case 3:
+        case 'h':
             return -1;  // Left
         default:
             return 0;
-        }
     }
+}
 }  // namespace
 
 Player::Player(const std::string& name, const Position& startPosition, int totalWalls)
     : name_(name),
-    position_(startPosition),
-    wallsRemaining_(totalWalls),
-    eliminated_(false) {
-}
+      position_(startPosition),
+      wallsRemaining_(totalWalls),
+      eliminated_(false) {}
 
 Position Player::previewMove(int direction) const {
     Position target = position_;
@@ -46,12 +47,12 @@ Position Player::previewMove(int direction) const {
 
 void Player::move(int direction) {
     if (eliminated_) {
-        std::cout << name_ << " cannot move because they are eliminated.\n";
+        cout << name_ << " cannot move because they are eliminated.\n";
         return;
     }
 
-    if (direction < 0 || direction > 3) {
-        std::cout << "Invalid move input for " << name_ << ". Use 0:Up, 1:Right, 2:Down, 3:Left.\n";
+    if (direction != 'u' && direction != 'n' && direction != 'k' && direction != 'h') {
+        cout << "Invalid move input for " << name_ << ". Use 0:Up, 1:Right, 2:Down, 3:Left.\n";
         return;
     }
 
@@ -69,7 +70,7 @@ void Player::move(int direction) {
 
 void Player::showStatus() const {
     std::cout << name_ << " - Position: (" << position_.row << ", " << position_.col
-        << "), Walls left: " << wallsRemaining_;
+              << "), Walls left: " << wallsRemaining_;
     if (eliminated_) {
         std::cout << " [ELIMINATED]";
     }
