@@ -136,7 +136,7 @@ bool Game::handleMoveCommand(char direction) {
 
 // Handle wall placement command
 
-bool Game::handleWallCommand(int row, int col, char orientation) {
+bool Game::handleWallCommand(int row, char col, char orientation) {
     if (players_[currentTurn_].isDead()) {
         cout << "Eliminated players cannot place walls.\n";
         return false;
@@ -147,9 +147,30 @@ bool Game::handleWallCommand(int row, int col, char orientation) {
         return false;
     }
 
-    Position position{row, col};
-    bool horizontal = false;
+    // 1) 사용자 입력을 내부 좌표로 변환
+    // 사용자는 1~8로 줄 번호를 준다고 가정 → 0-based로
+    int rowIdx = row - 1;      // 1 → 0, 8 → 7
 
+    // 알파벳은 A~H or a~h 로 온다고 가정 → 0-based로
+    int colIdx;
+    if (col >= 'A' && col <= 'Z') {
+        colIdx = col - 'A';    // 'A' → 0, 'H' → 7
+    } else if (col >= 'a' && col <= 'z') {
+        colIdx = col - 'a';
+    } else {
+        cout << "Column must be A~H.\n";
+        return false;
+    }
+
+    // 9x9일 때 유효한 벽 위치는 0~7 까지
+    if (rowIdx < 0 || rowIdx >= Board::kSize - 1 ||
+        colIdx < 0 || colIdx >= Board::kSize - 1) {
+        cout << "Wall position out of range.\n";
+        return false;
+    }
+
+    // 2) 방향 해석
+    bool horizontal;
     if (orientation == 'h' || orientation == 'H') {
         horizontal = true;
     } else if (orientation == 'v' || orientation == 'V') {
@@ -159,11 +180,14 @@ bool Game::handleWallCommand(int row, int col, char orientation) {
         return false;
     }
 
+    // 3) 보드에 실제로 벽 놓기
+    Position position{rowIdx, colIdx};
     if (!board_.placeWall(position, horizontal)) {
         cout << "Cannot place a wall at that location.\n";
         return false;
     }
 
+    // 4) 플레이어가 가진 벽 개수 감소
     players_[currentTurn_].placeWall();
     return true;
 }
@@ -172,9 +196,9 @@ void Game::nextTurn() {
     if (players_.empty()) {
         return;
     }
-
     currentTurn_ = (currentTurn_ + 1) % players_.size();
 }
+
 
 void Game::checkGameOver() {
     for (std::size_t index = 0; index < players_.size(); ++index) {

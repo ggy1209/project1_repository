@@ -30,6 +30,7 @@ private:
 
     int countHorizontalInRow(int row) const;
     int countVerticalInCol(int col) const;
+    bool overlapsExistingWall(const Position& position, bool horizontal) const;
 
     std::vector<WallPlacement> walls_;
 };
