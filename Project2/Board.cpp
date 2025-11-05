@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <queue>
 #include <string>
 #include <utility>
 #include <vector>
@@ -230,16 +231,101 @@ bool Board::isMoveBlocked(const Position& from, const Position& to) const {
     int colDelta = to.col - from.col;
 
     if (rowDelta == 1 && colDelta == 0) {
-        return hasWall({from.row, from.col}, true);
+        if (hasWall({from.row, from.col}, true)) {
+            return true;
+        }
+        if (from.col - 1 >= 0 && hasWall({from.row, from.col - 1}, true)) {
+            return true;
+        }
+        return false;
     }
     if (rowDelta == -1 && colDelta == 0) {
-        return hasWall({to.row, to.col}, true);
+        if (hasWall({to.row, to.col}, true)) {
+            return true;
+        }
+        if (to.col - 1 >= 0 && hasWall({to.row, to.col - 1}, true)) {
+            return true;
+        }
+        return false;
     }
     if (rowDelta == 0 && colDelta == 1) {
-        return hasWall({from.row, from.col}, false);
+        if (hasWall({from.row, from.col}, false)) {
+            return true;
+        }
+        if (from.row - 1 >= 0 && hasWall({from.row - 1, from.col}, false)) {
+            return true;
+        }
+        return false;
     }
     if (rowDelta == 0 && colDelta == -1) {
-        return hasWall({to.row, to.col}, false);
+        if (hasWall({to.row, to.col}, false)) {
+            return true;
+        }
+        if (to.row - 1 >= 0 && hasWall({to.row - 1, to.col}, false)) {
+            return true;
+        }
+        return false;
+    }
+
+    return false;
+}
+
+void Board::removeWall(const Position& position, bool horizontal) {
+    auto it = std::find_if(walls_.begin(), walls_.end(),
+                           [&](const WallPlacement& wall) {
+                               return wall.horizontal == horizontal &&
+                                      wall.position.row == position.row &&
+                                      wall.position.col == position.col;
+                           });
+    if (it != walls_.end()) {
+        walls_.erase(it);
+    }
+}
+
+bool Board::existsPath(const Position& start,
+                       const std::function<bool(const Position&)>& isGoal) const {
+    if (!isWithinBounds(start)) {
+        return false;
+    }
+
+    if (isGoal(start)) {
+        return true;
+    }
+
+    std::vector<std::vector<bool>> visited(
+        kSize, std::vector<bool>(kSize, false));
+    std::queue<Position> searchQueue;
+
+    visited[start.row][start.col] = true;
+    searchQueue.push(start);
+
+    const int directions[4][2] = {
+        {1, 0}, {-1, 0}, {0, 1}, {0, -1}
+    };
+
+    while (!searchQueue.empty()) {
+        Position current = searchQueue.front();
+        searchQueue.pop();
+
+        if (isGoal(current)) {
+            return true;
+        }
+
+        for (const auto& dir : directions) {
+            Position next{current.row + dir[0], current.col + dir[1]};
+            if (!isWithinBounds(next)) {
+                continue;
+            }
+            if (visited[next.row][next.col]) {
+                continue;
+            }
+            if (isMoveBlocked(current, next)) {
+                continue;
+            }
+
+            visited[next.row][next.col] = true;
+            searchQueue.push(next);
+        }
     }
 
     return false;
