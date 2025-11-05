@@ -10,7 +10,7 @@ class Player;
 
 class Board {
 public:
-    static constexpr int kSize = 9;
+    static constexpr int kSize = 8;
 
     Board();
 
@@ -20,12 +20,16 @@ public:
     bool isWithinBounds(const Position& position) const;
     bool placeWall(const Position& position, bool horizontal);
     bool hasWall(const Position& position, bool horizontal) const;
+    bool isMoveBlocked(const Position& from, const Position& to) const;
 
 private:
     struct WallPlacement {
         Position position;
         bool horizontal;
     };
+
+    int countHorizontalInRow(int row) const;
+    int countVerticalInCol(int col) const;
 
     std::vector<WallPlacement> walls_;
 };

@@ -10,8 +10,8 @@ class Player {
 public:
     Player(const std::string& name, const Position& startPosition, int totalWalls = 10);
 
-    Position previewMove(int direction) const;
-    void move(int direction);
+    Position previewMove(char direction) const;
+    void move(char direction, int steps = 1);
     void showStatus() const;
     bool isDead() const;
 
@@ -24,7 +24,7 @@ public:
     void eliminate();
 
 private:
-    static constexpr int kBoardSize = 9;
+    static constexpr int kBoardSize = 8;
 
     std::string name_;
     Position position_;
