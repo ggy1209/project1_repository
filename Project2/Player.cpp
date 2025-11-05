@@ -7,8 +7,12 @@ using namespace std;
 namespace {
 int directionToRowOffset(int direction) {
     switch (direction) {
+        case 'y':
+        case 'i':
         case 'u':
             return -1;  // Up
+        case 'b':
+        case 'm':
         case 'n':
             return 1;  // Down
         default:
@@ -18,8 +22,12 @@ int directionToRowOffset(int direction) {
 
 int directionToColOffset(int direction) {
     switch (direction) {
+        case 'i':
+        case 'm':
         case 'k':
             return 1;  // Right
+        case 'y':
+        case 'b':
         case 'h':
             return -1;  // Left
         default:
