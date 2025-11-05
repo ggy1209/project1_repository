@@ -43,12 +43,24 @@ void Game::start() {
 void Game::initializePlayers() {
     board_.reset();
     players_.clear();
+    playerGoals_.clear();
 
     const int middle = Board::kSize / 2;
-    players_.emplace_back("Player 1", Position{middle, 0});
-    players_.emplace_back("Player 2", Position{middle, Board::kSize - 1});
-    players_.emplace_back("Player 3", Position{0, middle});
-    players_.emplace_back("Player 4", Position{Board::kSize - 1, middle});  
+    Position p1{middle, 0};
+    players_.emplace_back("Player 1", p1);
+    playerGoals_.push_back(determineGoalType(p1));
+
+    Position p2{middle, Board::kSize - 1};
+    players_.emplace_back("Player 2", p2);
+    playerGoals_.push_back(determineGoalType(p2));
+
+    Position p3{0, middle};
+    players_.emplace_back("Player 3", p3);
+    playerGoals_.push_back(determineGoalType(p3));
+
+    Position p4{Board::kSize - 1, middle};
+    players_.emplace_back("Player 4", p4);
+    playerGoals_.push_back(determineGoalType(p4));
 }
 
 // Display the current status of the game
@@ -187,6 +199,12 @@ bool Game::handleWallCommand(int row, char col, char orientation) {
         return false;
     }
 
+    if (!allPlayersHavePath()) {
+        board_.removeWall(position, horizontal);
+        cout << "That wall blocks every route to a goal for at least one player.\n";
+        return false;
+    }
+
     // 4) 플레이어가 가진 벽 개수 감소
     players_[currentTurn_].placeWall();
     return true;
@@ -221,16 +239,8 @@ bool Game::hasPlayerReachedGoal(std::size_t playerIndex) const {
     }
 
     Position position = players_[playerIndex].getPosition();
-    if (players_.size() == 2) {
-        if (playerIndex == 0) {
-            return position.row == Board::kSize - 1;
-        }
-        if (playerIndex == 1) {
-            return position.row == 0;
-        }
-    }
-
-    return false;
+    auto goalCondition = goalConditionForPlayer(playerIndex);
+    return goalCondition(position);
 }
 
 bool Game::isCellOccupied(const Position& position, std::size_t ignoreIndex) const {
@@ -244,4 +254,63 @@ bool Game::isCellOccupied(const Position& position, std::size_t ignoreIndex) con
         }
     }
     return false;
+}
+
+std::function<bool(const Position&)> Game::goalConditionForPlayer(std::size_t playerIndex) const {
+    if (playerIndex >= playerGoals_.size()) {
+        return [](const Position&) { return false; };
+    }
+
+    GoalType goal = playerGoals_[playerIndex];
+
+    switch (goal) {
+        case GoalType::Row0:
+            return [](const Position& pos) { return pos.row == 0; };
+        case GoalType::RowLast:
+            return [](const Position& pos) { return pos.row == Board::kSize - 1; };
+        case GoalType::Col0:
+            return [](const Position& pos) { return pos.col == 0; };
+        case GoalType::ColLast:
+            return [](const Position& pos) { return pos.col == Board::kSize - 1; };
+        default:
+            return [](const Position&) { return false; };
+    }
+}
+
+bool Game::playerHasPathToGoal(std::size_t playerIndex) const {
+    if (playerIndex >= players_.size()) {
+        return false;
+    }
+
+    if (players_[playerIndex].isDead()) {
+        return true;
+    }
+
+    auto goalCondition = goalConditionForPlayer(playerIndex);
+    return board_.existsPath(players_[playerIndex].getPosition(), goalCondition);
+}
+
+bool Game::allPlayersHavePath() const {
+    for (std::size_t i = 0; i < players_.size(); ++i) {
+        if (!playerHasPathToGoal(i)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+Game::GoalType Game::determineGoalType(const Position& startPosition) const {
+    if (startPosition.row == 0) {
+        return GoalType::RowLast;
+    }
+    if (startPosition.row == Board::kSize - 1) {
+        return GoalType::Row0;
+    }
+    if (startPosition.col == 0) {
+        return GoalType::ColLast;
+    }
+    if (startPosition.col == Board::kSize - 1) {
+        return GoalType::Col0;
+    }
+    return GoalType::RowLast;
 }
