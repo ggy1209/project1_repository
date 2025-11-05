@@ -21,7 +21,7 @@ private:
     void showStatus() const;
     bool handleInput();
     bool handleMoveCommand(char direction);
-    bool handleWallCommand(int row, int col, char orientation);
+    bool handleWallCommand(int row, char col, char orientation);
     void nextTurn();
     void checkGameOver();
     bool hasPlayerReachedGoal(std::size_t playerIndex) const;
