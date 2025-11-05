@@ -38,6 +38,8 @@ void Game::start() {
     }
 }
 
+// Initialize players at their starting positions
+
 void Game::initializePlayers() {
     board_.reset();
     players_.clear();
@@ -49,6 +51,8 @@ void Game::initializePlayers() {
     players_.emplace_back("Player 4", Position{Board::kSize - 1, middle});  
 }
 
+// Display the current status of the game
+
 void Game::showStatus() const {
     board_.drawBoard(players_);
     cout << players_[currentTurn_].getName() << "'s turn. You have " << players_[currentTurn_].getWallsRemaining() << " walls left.\n";
@@ -59,17 +63,24 @@ void Game::showStatus() const {
     }
 }
 
+// Handle player input 
+
 bool Game::handleInput() {
     cout << "Press 1 to move your piece and Press 2 to place a wall: ";
     int command;
-    cin >> command;
+    std::cin >> command;
 
-    if (!cin) {
-        cin.clear();
+    if (!std::cin) {
+        std::cin.clear();
         std::cout << "Invalid command input. Try again.\n";
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         return false;
-    }//뭐하는거임
+    }
+    if (command != 1 && command !=2){
+        cout << "Invalid command. 1 or 2! \n";
+        return false;
+    }
+    
 
     bool turnCompleted = false;
 
@@ -77,11 +88,12 @@ bool Game::handleInput() {
         case 1 : {
             char direction;
             cout << "Please input the direction you want to move (center is key \"j\"): ";
-            cin >> direction;
-            if (!cin) {
-                cin.clear();
+            std::cin >> direction;
+            if (!std::cin) {
+                std::cin.clear();
                 std::cout << "Invalid move input. Try again.\n";
             } 
+            else if (Position target = players_[currentTurn_].previewMove();)
             else {
                 turnCompleted = handleMoveCommand(direction);
             }
@@ -92,11 +104,12 @@ bool Game::handleInput() {
             char col;
             char orientation;
             cout << "Please input the position of the wall coordinate and direction: ";
-            cin >> row >> col >> orientation;
-            if (!cin) {
-                cin.clear();
-                cout << "Invalid wall input. Try again.\n";
-            } else {
+            std::cin >> row >> col >> orientation;
+            
+            if (orientation != 'v' && orientation != 'h'){
+                cout << "Invalid. v or h! \n";
+            }
+            else {
                 turnCompleted = handleWallCommand(row, col, orientation);
             }
             break;
@@ -106,25 +119,33 @@ bool Game::handleInput() {
             break;
     }
 
-    cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     return turnCompleted;
 }
 
+// Handle move command
+
 bool Game::handleMoveCommand(int direction) {
     Position target = players_[currentTurn_].previewMove(direction);
+    if (isCellOccupied(target, currentTurn_) && direction) {
+        cout << "Another player already occupies that cell.\n";
+        return false;
+    }
     if (!board_.isWithinBounds(target)) {
         cout << "Move is outside the board.\n";
         return false;
     }
 
     if (isCellOccupied(target, currentTurn_)) {
-        cout << "Another player already occupies that cell.\n";
-        return false;
+        players_[currentTurn_].move(direction*2);
+        return true;
     }
 
     players_[currentTurn_].move(direction);
     return true;
 }
+
+// Handle wall placement command
 
 bool Game::handleWallCommand(int row, int col, char orientation) {
     if (players_[currentTurn_].isDead()) {
