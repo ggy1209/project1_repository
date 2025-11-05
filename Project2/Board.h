@@ -10,7 +10,7 @@ class Player;
 
 class Board {
 public:
-    static constexpr int kSize = 8;
+    static constexpr int kSize = 9;
 
     Board();
 
