@@ -20,7 +20,7 @@ private:
     void initializePlayers();
     void showStatus() const;
     bool handleInput();
-    bool handleMoveCommand(int direction);
+    bool handleMoveCommand(char direction);
     bool handleWallCommand(int row, int col, char orientation);
     void nextTurn();
     void checkGameOver();

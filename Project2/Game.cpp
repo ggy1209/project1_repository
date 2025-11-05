@@ -68,48 +68,36 @@ void Game::showStatus() const {
 bool Game::handleInput() {
     cout << "Press 1 to move your piece and Press 2 to place a wall: ";
     int command;
-    std::cin >> command;
-
-    if (!std::cin) {
+    if (!(std::cin >> command)) {
         std::cin.clear();
         std::cout << "Invalid command input. Try again.\n";
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         return false;
     }
-    if (command != 1 && command !=2){
-        cout << "Invalid command. 1 or 2! \n";
-        return false;
-    }
-    
 
     bool turnCompleted = false;
 
     switch (command) {
-        case 1 : {
+        case 1: {
             char direction;
             cout << "Please input the direction you want to move (center is key \"j\"): ";
-            std::cin >> direction;
-            if (!std::cin) {
+            if (!(std::cin >> direction)) {
                 std::cin.clear();
                 std::cout << "Invalid move input. Try again.\n";
-            } 
-            else if (Position target = players_[currentTurn_].previewMove();)
-            else {
+            } else {
                 turnCompleted = handleMoveCommand(direction);
             }
             break;
         }
-        case 2:{
+        case 2: {
             int row;
             char col;
             char orientation;
             cout << "Please input the position of the wall coordinate and direction: ";
-            std::cin >> row >> col >> orientation;
-            
-            if (orientation != 'v' && orientation != 'h'){
-                cout << "Invalid. v or h! \n";
-            }
-            else {
+            if (!(std::cin >> row >> col >> orientation)) {
+                std::cin.clear();
+                cout << "Invalid wall input. Try again.\n";
+            } else {
                 turnCompleted = handleWallCommand(row, col, orientation);
             }
             break;
@@ -123,20 +111,21 @@ bool Game::handleInput() {
     return turnCompleted;
 }
 
-// Handle move command
-
-bool Game::handleMoveCommand(int direction) {
+bool Game::handleMoveCommand(char direction) {
+    Position current = players_[currentTurn_].getPosition();
     Position target = players_[currentTurn_].previewMove(direction);
-    if (isCellOccupied(target, currentTurn_) && direction) {
-        cout << "Another player already occupies that cell.\n";
+
+    if (target.row == current.row && target.col == current.col) {
+        cout << "Invalid direction. Use the keys surrounding 'j' (h, y, u, i, k, n, m, b).\n";
         return false;
     }
+
     if (!board_.isWithinBounds(target)) {
         cout << "Move is outside the board.\n";
         return false;
     }
 
-    if (isCellOccupied(target, currentTurn_)) {
+    if (isCellOccupied(target, currentTurn_) && board_.isWithinBounds(players_[currentTurn_].previewMove(direction*2))) {
         players_[currentTurn_].move(direction*2);
         return true;
     }

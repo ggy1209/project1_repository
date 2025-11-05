@@ -1,35 +1,55 @@
 #include "Player.h"
 
+#include <cctype>
 #include <iostream>
 
 using namespace std;
 
 namespace {
-int directionToRowOffset(int direction) {
+bool isValidDirection(char direction) {
+    direction = static_cast<char>(std::tolower(static_cast<unsigned char>(direction)));
+    switch (direction) {
+        case 'b':
+        case 'h':
+        case 'i':
+        case 'k':
+        case 'm':
+        case 'n':
+        case 'u':
+        case 'y':
+            return true;
+        default:
+            return false;
+    }
+}
+
+int directionToRowOffset(char direction) {
+    direction = static_cast<char>(std::tolower(static_cast<unsigned char>(direction)));
     switch (direction) {
         case 'y':
         case 'i':
         case 'u':
-            return -1;  // Up
+            return -1;  // Up and diagonals
         case 'b':
         case 'm':
         case 'n':
-            return 1;  // Down
+            return 1;  // Down and diagonals
         default:
             return 0;
     }
 }
 
-int directionToColOffset(int direction) {
+int directionToColOffset(char direction) {
+    direction = static_cast<char>(std::tolower(static_cast<unsigned char>(direction)));
     switch (direction) {
         case 'i':
-        case 'm':
         case 'k':
-            return 1;  // Right
-        case 'y':
+        case 'm':
+            return 1;  // Right and diagonals
         case 'b':
         case 'h':
-            return -1;  // Left
+        case 'y':
+            return -1;  // Left and diagonals
         default:
             return 0;
     }
@@ -42,9 +62,10 @@ Player::Player(const std::string& name, const Position& startPosition, int total
       wallsRemaining_(totalWalls),
       eliminated_(false) {}
 
-Position Player::previewMove(int direction) const {
+Position Player::previewMove(char direction) const {
+    direction = static_cast<char>(std::tolower(static_cast<unsigned char>(direction)));
     Position target = position_;
-    if (direction < 0 || direction > 3) {
+    if (!isValidDirection(direction)) {
         return target;
     }
 
@@ -53,19 +74,22 @@ Position Player::previewMove(int direction) const {
     return target;
 }
 
-void Player::move(int direction) {
+void Player::move(char direction, int steps) {
+    direction = static_cast<char>(std::tolower(static_cast<unsigned char>(direction)));
     if (eliminated_) {
         cout << name_ << " cannot move because they are eliminated.\n";
         return;
     }
 
-    if (direction != 'u' && direction != 'n' && direction != 'k' && direction != 'h') {
-        cout << "Invalid move input for " << name_ << ". Use 0:Up, 1:Right, 2:Down, 3:Left.\n";
+    if (!isValidDirection(direction)) {
+        cout << "Invalid move input for " << name_ << ". Use h/b/y for left, k/m/i for right, u/i/y for up, n/m/b for down.\n";
         return;
     }
 
-    int newRow = position_.row + directionToRowOffset(direction);
-    int newCol = position_.col + directionToColOffset(direction);
+    int rowOffset = directionToRowOffset(direction) * steps;
+    int colOffset = directionToColOffset(direction) * steps;
+    int newRow = position_.row + rowOffset;
+    int newCol = position_.col + colOffset;
 
     if (!isWithinBoard(newRow, newCol)) {
         std::cout << name_ << " cannot move outside the board bounds.\n";
