@@ -37,6 +37,10 @@ private:
     std::function<bool(const Position&)> goalConditionForPlayer(std::size_t playerIndex) const;
     bool playerHasPathToGoal(std::size_t playerIndex) const;
     bool allPlayersHavePath() const;
+    bool canMoveDiagonally(const Position& current,
+                           const Position& target,
+                           const Position& diagonal,
+                           std::size_t movingIndex) const;
     GoalType determineGoalType(const Position& startPosition) const;
 
     Board board_;

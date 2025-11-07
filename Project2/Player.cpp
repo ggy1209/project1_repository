@@ -82,7 +82,7 @@ void Player::move(char direction, int steps) {
     }
 
     if (!isValidDirection(direction)) {
-        cout << "Invalid move input for " << name_ << ". Use h/b/y for left, k/m/i for right, u/i/y for up, n/m/b for down.\n";
+        cout << "Invalid move input for " << name_ << ". isValidDirection\n";
         return;
     }
 

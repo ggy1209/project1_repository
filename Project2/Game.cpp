@@ -2,8 +2,27 @@
 
 #include <iostream>
 #include <limits>
+#include <cstdlib>
 
 using namespace std;
+
+namespace {
+char directionForDelta(int rowDelta, int colDelta) {
+    if (rowDelta == -1) {
+        if (colDelta == -1) return 'y';
+        if (colDelta == 0) return 'u';
+        if (colDelta == 1) return 'i';
+    } else if (rowDelta == 0) {
+        if (colDelta == -1) return 'h';
+        if (colDelta == 1) return 'k';
+    } else if (rowDelta == 1) {
+        if (colDelta == -1) return 'b';
+        if (colDelta == 0) return 'n';
+        if (colDelta == 1) return 'm';
+    }
+    return '\0';
+}
+}  // namespace
 
 Game::Game() : currentTurn_(0), isGameOver_(false) {
     initializePlayers();
@@ -137,9 +156,63 @@ bool Game::handleMoveCommand(char direction) {
         return false;
     }
 
-    if (isCellOccupied(target, currentTurn_) && board_.isWithinBounds(players_[currentTurn_].previewMove(direction*2))) {
-        players_[currentTurn_].move(direction*2);
-        return true;
+    if (board_.isMoveBlocked(current, target)) {
+        cout << "A wall blocks that move.\n";
+        return false;
+    }
+
+    if (isCellOccupied(target, currentTurn_)) {
+        Position jumpTarget{
+            target.row + (target.row - current.row),
+            target.col + (target.col - current.col)
+        };
+
+        bool jumpWithin = board_.isWithinBounds(jumpTarget);
+        bool jumpBlocked = jumpWithin ? board_.isMoveBlocked(target, jumpTarget) : true;
+        bool jumpOccupied = jumpWithin ? isCellOccupied(jumpTarget, currentTurn_) : false;
+
+        if (jumpWithin && !jumpBlocked && !jumpOccupied) {
+            players_[currentTurn_].move(direction, 2);
+            return true;
+        }
+
+        if (jumpBlocked) {
+            vector<Position> diagonalTargets;
+            if (target.row == current.row) {
+                diagonalTargets.push_back({target.row - 1, target.col});
+                diagonalTargets.push_back({target.row + 1, target.col});
+            } else if (target.col == current.col) {
+                diagonalTargets.push_back({target.row, target.col - 1});
+                diagonalTargets.push_back({target.row, target.col + 1});
+            }
+
+            for (const Position& diagonal : diagonalTargets) {
+                if (!canMoveDiagonally(current, target, diagonal, currentTurn_)) {
+                    continue;
+                }
+
+                int rowDelta = diagonal.row - current.row;
+                int colDelta = diagonal.col - current.col;
+                char diagDirection = directionForDelta(rowDelta, colDelta);
+                if (diagDirection == '\0') {
+                    continue;
+                }
+
+                players_[currentTurn_].move(diagDirection);
+                return true;
+            }
+
+            cout << "Cannot move diagonally; both flanks are blocked.\n";
+            return false;
+        }
+
+        if (jumpOccupied) {
+            cout << "Cannot jump because the landing cell is occupied.\n";
+            return false;
+        }
+
+        cout << "Cannot jump outside the board.\n";
+        return false;
     }
 
     players_[currentTurn_].move(direction);
@@ -295,6 +368,43 @@ bool Game::allPlayersHavePath() const {
         if (!playerHasPathToGoal(i)) {
             return false;
         }
+    }
+    return true;
+}
+
+bool Game::canMoveDiagonally(const Position& current,
+                             const Position& target,
+                             const Position& diagonal,
+                             std::size_t movingIndex) const {
+    if (!board_.isWithinBounds(diagonal)) {
+        return false;
+    }
+    if (board_.isMoveBlocked(current, target)) {
+        return false;
+    }
+    if (isCellOccupied(diagonal, movingIndex)) {
+        return false;
+    }
+    if (board_.isMoveBlocked(target, diagonal)) {
+        return false;
+    }
+
+    int primaryRow = target.row - current.row;
+    int primaryCol = target.col - current.col;
+    int diagonalRowDelta = diagonal.row - target.row;
+    int diagonalColDelta = diagonal.col - target.col;
+
+    if (std::abs(primaryRow) + std::abs(primaryCol) != 1) {
+        return false;
+    }
+    if (std::abs(diagonalRowDelta) + std::abs(diagonalColDelta) != 1) {
+        return false;
+    }
+    if (primaryRow != 0 && diagonalColDelta == 0) {
+        return false;
+    }
+    if (primaryCol != 0 && diagonalRowDelta == 0) {
+        return false;
     }
     return true;
 }
