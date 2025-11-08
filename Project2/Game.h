@@ -29,7 +29,15 @@ private:
     void showStatus() const;
     bool handleInput();
     bool handleMoveCommand(char direction);
+    bool handleOrthogonalMove(char direction,
+                              const Position& current,
+                              const Position& target);
+    bool handleDiagonalMove(char direction,
+                            const Position& current,
+                            const Position& target);
     bool handleWallCommand(int row, char col, char orientation);
+    void handleRedCellInteraction();
+    bool isRedCellPosition(const Position& position) const;
     void nextTurn();
     void checkGameOver();
     bool hasPlayerReachedGoal(std::size_t playerIndex) const;
@@ -49,6 +57,7 @@ private:
     size_t currentTurn_;
     bool isGameOver_;
     string winnerName_;
+    bool skipInputFlush_;
 };
 
 #endif // GAME_HPP

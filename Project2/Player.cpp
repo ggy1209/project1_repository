@@ -59,8 +59,7 @@ int directionToColOffset(char direction) {
 Player::Player(const std::string& name, const Position& startPosition, int totalWalls)
     : name_(name),
       position_(startPosition),
-      wallsRemaining_(totalWalls),
-      eliminated_(false) {}
+      wallsRemaining_(totalWalls) {}
 
 Position Player::previewMove(char direction) const {
     direction = static_cast<char>(std::tolower(static_cast<unsigned char>(direction)));
@@ -76,11 +75,6 @@ Position Player::previewMove(char direction) const {
 
 void Player::move(char direction, int steps) {
     direction = static_cast<char>(std::tolower(static_cast<unsigned char>(direction)));
-    if (eliminated_) {
-        cout << name_ << " cannot move because they are eliminated.\n";
-        return;
-    }
-
     if (!isValidDirection(direction)) {
         cout << "Invalid move input for " << name_ << ". isValidDirection\n";
         return;
@@ -102,15 +96,7 @@ void Player::move(char direction, int steps) {
 
 void Player::showStatus() const {
     std::cout << name_ << " - Position: (" << position_.row << ", " << position_.col
-              << "), Walls left: " << wallsRemaining_;
-    if (eliminated_) {
-        std::cout << " [ELIMINATED]";
-    }
-    std::cout << '\n';
-}
-
-bool Player::isDead() const {
-    return eliminated_;
+              << "), Walls left: " << wallsRemaining_ << '\n';
 }
 
 const std::string& Player::getName() const {
@@ -130,11 +116,6 @@ bool Player::hasWallsRemaining() const {
 }
 
 bool Player::placeWall() {
-    if (eliminated_) {
-        std::cout << name_ << " cannot place walls after elimination.\n";
-        return false;
-    }
-
     if (wallsRemaining_ == 0) {
         std::cout << name_ << " has no walls left to place.\n";
         return false;
@@ -144,8 +125,8 @@ bool Player::placeWall() {
     return true;
 }
 
-void Player::eliminate() {
-    eliminated_ = true;
+void Player::setPosition(const Position& position) {
+    position_ = position;
 }
 
 bool Player::isWithinBoard(int row, int col) const {
