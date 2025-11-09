@@ -10,6 +10,16 @@
 #include "Player.h"
 
 namespace {
+constexpr const char* kResetColor = "\033[0m";
+constexpr const char* kRedColor = "\033[31m";
+constexpr const char* kGreenColor = "\033[32m";
+constexpr const char* kYellowColor = "\033[33m";
+constexpr const char* kBlueColor = "\033[34m";
+
+std::string colorize(const std::string& text, const char* color) {
+    return std::string(color) + text + kResetColor;
+}
+
 std::vector<std::pair<int, int>> wallPixels(const Position& position, bool horizontal) {
     std::vector<std::pair<int, int>> pixels;
 
@@ -45,6 +55,10 @@ void Board::drawBoard(const std::vector<Player>& players) const {
         rows, std::vector<std::string>(cols, " ")
     );
 
+    const std::vector<std::pair<int, int>> highlightedCells = {
+        {2, 2}, {2, 6}, {6, 2}, {6, 6}
+    };
+
     // 1) 맨 위 알파벳 줄 (A ~ H)
     for (int g = 0; g < N - 1; ++g) {
         int col = 4 + 4 * g; // 네모 사이 가운데 위치
@@ -65,7 +79,14 @@ void Board::drawBoard(const std::vector<Player>& players) const {
         for (int c = 0; c < N; ++c) {
             int cellCol = 2 + 4 * c; // 각 셀의 열 위치
             if (cellCol < cols) {
-                screen[cellRow][cellCol] = u8"□";
+                bool highlight = std::any_of(
+                    highlightedCells.begin(),
+                    highlightedCells.end(),
+                    [&](const std::pair<int, int>& pos) {
+                        return pos.first == r && pos.second == c;
+                    });
+                screen[cellRow][cellCol] =
+                    highlight ? colorize(u8"□", kRedColor) : u8"□";
             }
         }
 
@@ -77,8 +98,11 @@ void Board::drawBoard(const std::vector<Player>& players) const {
     }
 
     // 3) 플레이어 표시
+    const std::vector<const char*> playerColors = {
+        kYellowColor, kGreenColor, kRedColor, kBlueColor
+    };
+
     for (std::size_t i = 0; i < players.size(); ++i) {
-        if (players[i].isDead()) continue;
         Position p = players[i].getPosition();
         if (!isWithinBounds(p)) continue;
 
@@ -87,8 +111,12 @@ void Board::drawBoard(const std::vector<Player>& players) const {
 
         if (cellRow >= 0 && cellRow < rows &&
             cellCol >= 0 && cellCol < cols) {
-            screen[cellRow][cellCol] =
-                std::string(1, static_cast<char>('1' + static_cast<int>(i)));
+            std::string symbol(1, static_cast<char>('1' + static_cast<int>(i)));
+            if (i < playerColors.size()) {
+                screen[cellRow][cellCol] = colorize(symbol, playerColors[i]);
+            } else {
+                screen[cellRow][cellCol] = symbol;
+            }
         }
     }
 
@@ -103,31 +131,35 @@ void Board::drawBoard(const std::vector<Player>& players) const {
             continue;
 
         // 중심 네모
-        screen[centerRow][centerCol] = u8"■";
+        screen[centerRow][centerCol] = colorize(u8"■", kBlueColor);
 
         if (wall.horizontal) {
             // 수평(h): 같은 행에서 양옆 셀 열에 찍어야 함
             // 가운데(4+4c) 기준으로 ±2 하면 셀 열(2+4c, 6+4c)이 됨
             int leftCol  = centerCol - 2;
             int rightCol = centerCol + 2;
-            if (leftCol >= 0)    screen[centerRow][leftCol] = u8"■";
-            if (rightCol < cols) screen[centerRow][rightCol] = u8"■";
+            if (leftCol >= 0)    screen[centerRow][leftCol] = colorize(u8"■", kBlueColor);
+            if (rightCol < cols) screen[centerRow][rightCol] = colorize(u8"■", kBlueColor);
         } else {
             // 수직(v): 같은 열에서 위/아래 한 줄씩 (셀 줄)
             // 가운데 숫자줄(2+2r) 기준으로 ±1 하면 위아래 셀줄(1+2r, 3+2r)
             int upRow   = centerRow - 1;
             int downRow = centerRow + 1;
-            if (upRow >= 0)    screen[upRow][centerCol] = u8"■";
-            if (downRow < rows) screen[downRow][centerCol] = u8"■";
+            if (upRow >= 0)    screen[upRow][centerCol] = colorize(u8"■", kBlueColor);
+            if (downRow < rows) screen[downRow][centerCol] = colorize(u8"■", kBlueColor);
         }
     }
 
-    // 5) 화면 출력
+    // 5) 화면 출력 (가로 방향 칸 사이에 공백 추가)
     for (int r = 0; r < rows; ++r) {
+        std::string line;
         for (int c = 0; c < cols; ++c) {
-            std::cout << screen[r][c];
+            line += screen[r][c];
+            if (c + 1 < cols) {
+                line += ' ';
+            }
         }
-        std::cout << '\n';
+        std::cout << line << '\n';
     }
 }
 
@@ -137,20 +169,6 @@ void Board::drawBoard(const std::vector<Player>& players) const {
 bool Board::isWithinBounds(const Position& position) const {
     return position.row >= 0 && position.row < kSize &&
            position.col >= 0 && position.col < kSize;
-}
-
-int Board::countHorizontalInRow(int row) const {
-    return std::count_if(walls_.begin(), walls_.end(),
-                         [&](const WallPlacement& wall) {
-                             return wall.horizontal && wall.position.row == row;
-                         });
-}
-
-int Board::countVerticalInCol(int col) const {
-    return std::count_if(walls_.begin(), walls_.end(),
-                         [&](const WallPlacement& wall) {
-                             return !wall.horizontal && wall.position.col == col;
-                         });
 }
 
 bool Board::overlapsExistingWall(const Position& position, bool horizontal) const {
@@ -186,10 +204,6 @@ bool Board::placeWall(const Position& position, bool horizontal) {
     }
 
     if (horizontal) {
-        if (countHorizontalInRow(position.row) >= 3) {
-            return false;
-        }
-
         Position left{position.row, position.col - 1};
         Position right{position.row, position.col + 1};
         if (position.col - 1 >= 0 && hasWall(left, true)) {
@@ -199,10 +213,6 @@ bool Board::placeWall(const Position& position, bool horizontal) {
             return false;
         }
     } else {
-        if (countVerticalInCol(position.col) >= 3) {
-            return false;
-        }
-
         Position up{position.row - 1, position.col};
         Position down{position.row + 1, position.col};
         if (position.row - 1 >= 0 && hasWall(up, false)) {

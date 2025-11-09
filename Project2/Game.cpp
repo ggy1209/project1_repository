@@ -1,11 +1,65 @@
 #include "Game.h"
 
+#include <cctype>
+#include <cstdlib>
 #include <iostream>
 #include <limits>
 
 using namespace std;
 
-Game::Game() : currentTurn_(0), isGameOver_(false) {
+namespace {
+bool isValidDirectionInput(char direction) {
+    direction = static_cast<char>(std::tolower(static_cast<unsigned char>(direction)));
+    switch (direction) {
+        case 'b':
+        case 'h':
+        case 'i':
+        case 'k':
+        case 'm':
+        case 'n':
+        case 'u':
+        case 'y':
+            return true;
+        default:
+            return false;
+    }
+}
+
+constexpr const char* kResetColor = "\033[0m";
+constexpr const char* kYellowColor = "\033[33m";
+constexpr const char* kGreenColor = "\033[32m";
+constexpr const char* kRedColor = "\033[31m";
+constexpr const char* kBlueColor = "\033[34m";
+
+const char* colorForPlayerIndex(std::size_t index) {
+    switch (index) {
+        case 0: return kYellowColor;
+        case 1: return kGreenColor;
+        case 2: return kRedColor;
+        case 3: return kBlueColor;
+        default: return kResetColor;
+    }
+}
+
+std::string colorizeText(const std::string& text, const char* color) {
+    return std::string(color) + text + kResetColor;
+}
+
+std::string colorizeDigits(const std::string& text, std::size_t playerIndex) {
+    std::string result;
+    const char* color = colorForPlayerIndex(playerIndex);
+    for (char ch : text) {
+        if (std::isdigit(static_cast<unsigned char>(ch))) {
+            result += colorizeText(std::string(1, ch), color);
+        } else {
+            result += ch;
+        }
+    }
+    return result;
+}
+}  // namespace
+
+Game::Game() : currentTurn_(0), isGameOver_(false), skipInputFlush_(false) {
     initializePlayers();
 }
 
@@ -14,6 +68,7 @@ void Game::start() {
     isGameOver_ = false;
     winnerName_.clear();
     currentTurn_ = 0;
+    skipInputFlush_ = false;
 
     cout << "Quoridor game start!\n";
 
@@ -67,7 +122,11 @@ void Game::initializePlayers() {
 
 void Game::showStatus() const {
     board_.drawBoard(players_);
-    cout << players_[currentTurn_].getName() << "'s turn. You have " << players_[currentTurn_].getWallsRemaining() << " walls left.\n";
+    std::string coloredName = colorizeDigits(players_[currentTurn_].getName(),
+                                             currentTurn_);
+    cout << coloredName << "'s turn. You have "
+         << players_[currentTurn_].getWallsRemaining()
+         << " walls left.\n";
     
     //지워야할!
     for (const auto& player : players_) {
@@ -119,41 +178,202 @@ bool Game::handleInput() {
             break;
     }
 
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    if (!skipInputFlush_) {
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    } else {
+        skipInputFlush_ = false;
+    }
     return turnCompleted;
 }
 
 bool Game::handleMoveCommand(char direction) {
-    Position current = players_[currentTurn_].getPosition();
-    Position target = players_[currentTurn_].previewMove(direction);
-
-    if (target.row == current.row && target.col == current.col) {
+    direction = static_cast<char>(std::tolower(static_cast<unsigned char>(direction)));
+    if (!isValidDirectionInput(direction)) {
         cout << "Invalid direction. Use the keys surrounding 'j' (h, y, u, i, k, n, m, b).\n";
         return false;
     }
+
+    Position current = players_[currentTurn_].getPosition();
+    Position target = players_[currentTurn_].previewMove(direction);
 
     if (!board_.isWithinBounds(target)) {
         cout << "Move is outside the board.\n";
         return false;
     }
 
-    if (isCellOccupied(target, currentTurn_) && board_.isWithinBounds(players_[currentTurn_].previewMove(direction*2))) {
-        players_[currentTurn_].move(direction*2);
+    bool isDiagonal = (current.row != target.row) && (current.col != target.col);
+    if (isDiagonal) {
+        return handleDiagonalMove(direction, current, target);
+    }
+
+    return handleOrthogonalMove(direction, current, target);
+}
+
+bool Game::handleOrthogonalMove(char direction,
+                                const Position& current,
+                                const Position& target) {
+    if (board_.isMoveBlocked(current, target)) {
+        cout << "A wall blocks that move.\n";
+        return false;
+    }
+
+    if (isCellOccupied(target, currentTurn_)) {
+        Position jumpTarget{
+            target.row + (target.row - current.row),
+            target.col + (target.col - current.col)
+        };
+
+        if (!board_.isWithinBounds(jumpTarget)) {
+            cout << "Cannot jump outside the board.\n";
+            return false;
+        }
+
+        if (board_.isMoveBlocked(target, jumpTarget)) {
+            cout << "Cannot jump because a wall blocks the landing path.\n";
+            return false;
+        }
+
+        if (isCellOccupied(jumpTarget, currentTurn_)) {
+            cout << "Cannot jump because the landing cell is occupied.\n";
+            return false;
+        }
+
+        players_[currentTurn_].move(direction, 2);
+        handleRedCellInteraction();
         return true;
     }
 
     players_[currentTurn_].move(direction);
+    handleRedCellInteraction();
     return true;
+}
+
+bool Game::handleDiagonalMove(char direction,
+                              const Position& current,
+                              const Position& target) {
+    if (isCellOccupied(target, currentTurn_)) {
+        cout << "Target cell is already occupied.\n";
+        return false;
+    }
+
+    int rowStep = (target.row - current.row) > 0 ? 1 : -1;
+    int colStep = (target.col - current.col) > 0 ? 1 : -1;
+
+    vector<Position> adjacentCandidates = {
+        {current.row + rowStep, current.col},
+        {current.row, current.col + colStep}
+    };
+
+    for (const Position& opponentPos : adjacentCandidates) {
+        if (!board_.isWithinBounds(opponentPos)) {
+            continue;
+        }
+        if (!isCellOccupied(opponentPos, currentTurn_)) {
+            continue;
+        }
+        if (board_.isMoveBlocked(current, opponentPos)) {
+            continue;
+        }
+
+        Position behind{
+            opponentPos.row + (opponentPos.row - current.row),
+            opponentPos.col + (opponentPos.col - current.col)
+        };
+        bool wallBehind = false;
+        if (!board_.isWithinBounds(behind)) {
+            wallBehind = true;
+        } else if (board_.isMoveBlocked(opponentPos, behind)) {
+            wallBehind = true;
+        }
+        if (!wallBehind) {
+            continue;
+        }
+
+        if (board_.isMoveBlocked(opponentPos, target)) {
+            continue;
+        }
+
+        players_[currentTurn_].move(direction);
+        handleRedCellInteraction();
+        return true;
+    }
+
+    cout << "Diagonal move requires an adjacent opponent with a blocking wall and a clear diagonal path.\n";
+    return false;
+}
+
+bool Game::isRedCellPosition(const Position& position) const {
+    static const Position kRedCells[] = {
+        {2, 2}, {2, 6}, {6, 2}, {6, 6}
+    };
+
+    for (const auto& red : kRedCells) {
+        if (position.row == red.row && position.col == red.col) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void Game::handleRedCellInteraction() {
+    Position position = players_[currentTurn_].getPosition();
+    if (!isRedCellPosition(position)) {
+        return;
+    }
+
+    board_.drawBoard(players_);
+
+    cout << "You are in the red pixel!\n";
+
+    auto flushLine = [&]() {
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        skipInputFlush_ = true;
+    };
+
+    while (true) {
+        cout << "Enter the player ID th switch with (or enter your own ID to stay):  ";
+
+        int targetId;
+        if (!(std::cin >> targetId)) {
+            std::cin.clear();
+            flushLine();
+            cout << "Invalid input. Try again.\n";
+            continue;
+        }
+
+        flushLine();
+
+        if (targetId < 1 || static_cast<std::size_t>(targetId) > players_.size()) {
+            cout << "Invalid player ID. Try again.\n";
+            continue;
+        }
+
+        std::size_t targetIndex = static_cast<std::size_t>(targetId - 1);
+        if (targetIndex == currentTurn_) {
+            cout << "Remaining on the red pixel.\n";
+            break;
+        }
+
+        Position otherPosition = players_[targetIndex].getPosition();
+        auto goalCheck = [&](const Position& pos) {
+            return pos.row == otherPosition.row && pos.col == otherPosition.col;
+        };
+
+        if (!board_.existsPath(position, goalCheck)) {
+            cout << "All paths are blocked by walls. Choose another player.\n";
+            continue;
+        }
+
+        players_[targetIndex].setPosition(position);
+        players_[currentTurn_].setPosition(otherPosition);
+        cout << "Swapped positions with Player " << (targetIndex + 1) << ".\n";
+        break;
+    }
 }
 
 // Handle wall placement command
 
 bool Game::handleWallCommand(int row, char col, char orientation) {
-    if (players_[currentTurn_].isDead()) {
-        cout << "Eliminated players cannot place walls.\n";
-        return false;
-    }
-
     if (!players_[currentTurn_].hasWallsRemaining()) {
         cout << "No walls remaining to place.\n";
         return false;
@@ -220,10 +440,6 @@ void Game::nextTurn() {
 
 void Game::checkGameOver() {
     for (std::size_t index = 0; index < players_.size(); ++index) {
-        if (players_[index].isDead()) {
-            continue;
-        }
-
         if (hasPlayerReachedGoal(index)) {
             isGameOver_ = true;
             winnerName_ = players_[index].getName();
@@ -245,7 +461,7 @@ bool Game::hasPlayerReachedGoal(std::size_t playerIndex) const {
 
 bool Game::isCellOccupied(const Position& position, std::size_t ignoreIndex) const {
     for (std::size_t index = 0; index < players_.size(); ++index) {
-        if (index == ignoreIndex || players_[index].isDead()) {
+        if (index == ignoreIndex) {
             continue;
         }
         Position current = players_[index].getPosition();
@@ -282,10 +498,6 @@ bool Game::playerHasPathToGoal(std::size_t playerIndex) const {
         return false;
     }
 
-    if (players_[playerIndex].isDead()) {
-        return true;
-    }
-
     auto goalCondition = goalConditionForPlayer(playerIndex);
     return board_.existsPath(players_[playerIndex].getPosition(), goalCondition);
 }
@@ -295,6 +507,43 @@ bool Game::allPlayersHavePath() const {
         if (!playerHasPathToGoal(i)) {
             return false;
         }
+    }
+    return true;
+}
+
+bool Game::canMoveDiagonally(const Position& current,
+                             const Position& target,
+                             const Position& diagonal,
+                             std::size_t movingIndex) const {
+    if (!board_.isWithinBounds(diagonal)) {
+        return false;
+    }
+    if (board_.isMoveBlocked(current, target)) {
+        return false;
+    }
+    if (isCellOccupied(diagonal, movingIndex)) {
+        return false;
+    }
+    if (board_.isMoveBlocked(target, diagonal)) {
+        return false;
+    }
+
+    int primaryRow = target.row - current.row;
+    int primaryCol = target.col - current.col;
+    int diagonalRowDelta = diagonal.row - target.row;
+    int diagonalColDelta = diagonal.col - target.col;
+
+    if (std::abs(primaryRow) + std::abs(primaryCol) != 1) {
+        return false;
+    }
+    if (std::abs(diagonalRowDelta) + std::abs(diagonalColDelta) != 1) {
+        return false;
+    }
+    if (primaryRow != 0 && diagonalColDelta == 0) {
+        return false;
+    }
+    if (primaryCol != 0 && diagonalRowDelta == 0) {
+        return false;
     }
     return true;
 }
