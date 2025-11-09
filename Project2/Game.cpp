@@ -8,6 +8,12 @@
 using namespace std;
 
 namespace {
+inline Position makePos(int r, int c){
+    Position p;
+    p.row=r;
+    p.col=c;
+    return p;
+}
 bool isValidDirectionInput(char direction) {
     direction = static_cast<char>(std::tolower(static_cast<unsigned char>(direction)));
     switch (direction) {
@@ -101,19 +107,19 @@ void Game::initializePlayers() {
     playerGoals_.clear();
 
     const int middle = Board::kSize / 2;
-    Position p1{middle, 0};
+    Position p1=makePos(middle, 0);
     players_.emplace_back("Player 1", p1);
     playerGoals_.push_back(determineGoalType(p1));
 
-    Position p2{middle, Board::kSize - 1};
+    Position p2=makePos(middle, Board::kSize - 1);
     players_.emplace_back("Player 2", p2);
     playerGoals_.push_back(determineGoalType(p2));
 
-    Position p3{0, middle};
+    Position p3=makePos(0, middle);
     players_.emplace_back("Player 3", p3);
     playerGoals_.push_back(determineGoalType(p3));
 
-    Position p4{Board::kSize - 1, middle};
+    Position p4=makePos(Board::kSize - 1, middle);
     players_.emplace_back("Player 4", p4);
     playerGoals_.push_back(determineGoalType(p4));
 }
@@ -218,10 +224,10 @@ bool Game::handleOrthogonalMove(char direction,
     }
 
     if (isCellOccupied(target, currentTurn_)) {
-        Position jumpTarget{
+        Position jumpTarget=makePos(
             target.row + (target.row - current.row),
             target.col + (target.col - current.col)
-        };
+        );
 
         if (!board_.isWithinBounds(jumpTarget)) {
             cout << "Cannot jump outside the board.\n";
@@ -259,10 +265,8 @@ bool Game::handleDiagonalMove(char direction,
     int rowStep = (target.row - current.row) > 0 ? 1 : -1;
     int colStep = (target.col - current.col) > 0 ? 1 : -1;
 
-    vector<Position> adjacentCandidates = {
-        {current.row + rowStep, current.col},
-        {current.row, current.col + colStep}
-    };
+    vector<Position> adjacentCandidates;
+    adjacentCandidates.push_back(makePos(current.row + rowStep, current.col));   adjacentCandidates.push_back(makePos(current.row, current.col + colStep));
 
     for (const Position& opponentPos : adjacentCandidates) {
         if (!board_.isWithinBounds(opponentPos)) {
@@ -275,10 +279,10 @@ bool Game::handleDiagonalMove(char direction,
             continue;
         }
 
-        Position behind{
+        Position behind=makePos(
             opponentPos.row + (opponentPos.row - current.row),
             opponentPos.col + (opponentPos.col - current.col)
-        };
+        );
         bool wallBehind = false;
         if (!board_.isWithinBounds(behind)) {
             wallBehind = true;
@@ -303,16 +307,7 @@ bool Game::handleDiagonalMove(char direction,
 }
 
 bool Game::isRedCellPosition(const Position& position) const {
-    static const Position kRedCells[] = {
-        {2, 2}, {2, 6}, {6, 2}, {6, 6}
-    };
-
-    for (const auto& red : kRedCells) {
-        if (position.row == red.row && position.col == red.col) {
-            return true;
-        }
-    }
-    return false;
+    return (position.row==2&&position.col==2)||(position.row==2&&position.col==6)||(position.row==6&&position.col==2)||(position.row==6&&position.col==6);
 }
 
 void Game::handleRedCellInteraction() {
@@ -413,7 +408,7 @@ bool Game::handleWallCommand(int row, char col, char orientation) {
     }
 
     // 3) 보드에 실제로 벽 놓기
-    Position position{rowIdx, colIdx};
+    Position position=makePos(rowIdx, colIdx);
     if (!board_.placeWall(position, horizontal)) {
         cout << "Cannot place a wall at that location.\n";
         return false;
