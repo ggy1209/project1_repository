@@ -10,6 +10,12 @@
 #include "Player.h"
 
 namespace {
+inline Position makePos(int r, int c){
+    Position p;
+    p.row=r;
+    p.col=c;
+    return p;
+}
 constexpr const char* kResetColor = "\033[0m";
 constexpr const char* kRedColor = "\033[31m";
 constexpr const char* kGreenColor = "\033[32m";
@@ -204,8 +210,8 @@ bool Board::placeWall(const Position& position, bool horizontal) {
     }
 
     if (horizontal) {
-        Position left{position.row, position.col - 1};
-        Position right{position.row, position.col + 1};
+        Position left=makePos(position.row, position.col - 1);
+        Position right=makePos(position.row, position.col + 1);
         if (position.col - 1 >= 0 && hasWall(left, true)) {
             return false;
         }
@@ -213,8 +219,8 @@ bool Board::placeWall(const Position& position, bool horizontal) {
             return false;
         }
     } else {
-        Position up{position.row - 1, position.col};
-        Position down{position.row + 1, position.col};
+        Position up=makePos(position.row - 1, position.col);
+        Position down=makePos(position.row + 1, position.col);
         if (position.row - 1 >= 0 && hasWall(up, false)) {
             return false;
         }
@@ -241,37 +247,37 @@ bool Board::isMoveBlocked(const Position& from, const Position& to) const {
     int colDelta = to.col - from.col;
 
     if (rowDelta == 1 && colDelta == 0) {
-        if (hasWall({from.row, from.col}, true)) {
+        if (hasWall(makePos(from.row, from.col), true)) {
             return true;
         }
-        if (from.col - 1 >= 0 && hasWall({from.row, from.col - 1}, true)) {
+        if (from.col - 1 >= 0 && hasWall(makePos(from.row, from.col-1), true)) {
             return true;
         }
         return false;
     }
     if (rowDelta == -1 && colDelta == 0) {
-        if (hasWall({to.row, to.col}, true)) {
+        if (hasWall(makePos(to.row, to.col), true)) {
             return true;
         }
-        if (to.col - 1 >= 0 && hasWall({to.row, to.col - 1}, true)) {
+        if (to.col - 1 >= 0 && hasWall(makePos(to.row, to.col - 1), true)) {
             return true;
         }
         return false;
     }
     if (rowDelta == 0 && colDelta == 1) {
-        if (hasWall({from.row, from.col}, false)) {
+        if (hasWall(makePos(from.row, from.col), false)) {
             return true;
         }
-        if (from.row - 1 >= 0 && hasWall({from.row - 1, from.col}, false)) {
+        if (from.row - 1 >= 0 && hasWall(makePos(from.row - 1, from.col), false)) {
             return true;
         }
         return false;
     }
     if (rowDelta == 0 && colDelta == -1) {
-        if (hasWall({to.row, to.col}, false)) {
+        if (hasWall(makePos(to.row, to.col), false)) {
             return true;
         }
-        if (to.row - 1 >= 0 && hasWall({to.row - 1, to.col}, false)) {
+        if (to.row - 1 >= 0 && hasWall(makePos(to.row - 1, to.col), false)) {
             return true;
         }
         return false;
@@ -322,7 +328,7 @@ bool Board::existsPath(const Position& start,
         }
 
         for (const auto& dir : directions) {
-            Position next{current.row + dir[0], current.col + dir[1]};
+            Position next=makePos(current.row + dir[0], current.col + dir[1]);
             if (!isWithinBounds(next)) {
                 continue;
             }
