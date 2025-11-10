@@ -54,7 +54,7 @@ void Board::reset() {
 void Board::drawBoard(const std::vector<Player>& players) const {
     const int N = kSize;                     // 예: 9
     const int rows = 2 * N;                  // 0행 알파벳 + (셀/숫자)*반복
-    const int cols = 2 + N + (N - 1) * 3;    // "  " + N칸 + (N-1)*3
+    const int cols = 3 + N + (N - 1) * 5;    // "  " + N칸 + (N-1)*3
 
     // 화면 버퍼 (전부 공백으로 초기화)
     std::vector<std::vector<std::string>> screen(
@@ -67,7 +67,7 @@ void Board::drawBoard(const std::vector<Player>& players) const {
 
     // 1) 맨 위 알파벳 줄 (A ~ H)
     for (int g = 0; g < N - 1; ++g) {
-        int col = 4 + 4 * g; // 네모 사이 가운데 위치
+        int col = 6 + 6 * g; // 네모 사이 가운데 위치
         if (col < cols) {
             screen[0][col] = std::string(1, static_cast<char>('A' + g)); // A~H
         }
@@ -83,7 +83,7 @@ void Board::drawBoard(const std::vector<Player>& players) const {
 
         // 셀 N개 출력
         for (int c = 0; c < N; ++c) {
-            int cellCol = 2 + 4 * c; // 각 셀의 열 위치
+            int cellCol = 3 + 6 * c; // 각 셀의 열 위치
             if (cellCol < cols) {
                 bool highlight = std::any_of(
                     highlightedCells.begin(),
@@ -99,7 +99,8 @@ void Board::drawBoard(const std::vector<Player>& players) const {
         // 숫자행 (1~N-1까지만)
         if (r < N - 1) {
             int numRow = cellRow + 1;
-            screen[numRow][0] = std::to_string(r + 1); // 1,2,...,8
+            screen[numRow][0]=" ";
+            screen[numRow][1] = std::to_string(r + 1); // 1,2,...,8
         }
     }
 
@@ -113,7 +114,7 @@ void Board::drawBoard(const std::vector<Player>& players) const {
         if (!isWithinBounds(p)) continue;
 
         int cellRow = 1 + 2 * p.row;  // 셀행
-        int cellCol = 2 + 4 * p.col;  // 셀열
+        int cellCol = 3 + 6 * p.col;  // 셀열
 
         if (cellRow >= 0 && cellRow < rows &&
             cellCol >= 0 && cellCol < cols) {
@@ -130,7 +131,7 @@ void Board::drawBoard(const std::vector<Player>& players) const {
     for (const auto& wall : walls_) {
         // 화면상 중심 좌표 계산
         int centerRow = 2 + 2 * wall.position.row;  // 숫자 있는 줄 (2,4,6,...)
-        int centerCol = 4 + 4 * wall.position.col;  // 알파벳 있는 열 (4,8,12,...)
+        int centerCol = 6 + 6 * wall.position.col;  // 알파벳 있는 열 (4,8,12,...)
 
         if (centerRow < 0 || centerRow >= rows ||
             centerCol < 0 || centerCol >= cols)
@@ -142,8 +143,8 @@ void Board::drawBoard(const std::vector<Player>& players) const {
         if (wall.horizontal) {
             // 수평(h): 같은 행에서 양옆 셀 열에 찍어야 함
             // 가운데(4+4c) 기준으로 ±2 하면 셀 열(2+4c, 6+4c)이 됨
-            int leftCol  = centerCol - 2;
-            int rightCol = centerCol + 2;
+            int leftCol  = centerCol - 3;
+            int rightCol = centerCol + 3;
             if (leftCol >= 0)    screen[centerRow][leftCol] = colorize(u8"■", kBlueColor);
             if (rightCol < cols) screen[centerRow][rightCol] = colorize(u8"■", kBlueColor);
         } else {
@@ -161,9 +162,6 @@ void Board::drawBoard(const std::vector<Player>& players) const {
         std::string line;
         for (int c = 0; c < cols; ++c) {
             line += screen[r][c];
-            if (c + 1 < cols) {
-                line += ' ';
-            }
         }
         std::cout << line << '\n';
     }
